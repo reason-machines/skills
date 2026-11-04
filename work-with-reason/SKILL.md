@@ -1,11 +1,11 @@
 ---
-name: work-in-reason
+name: work-with-reason
 metadata:
-  version: "2.0.0"
-description: Moves a person's work from a local agent session into their Reason workspace (reasonmachines.com), so teammates see, share and continue it. Hands each task to the right Reason as a message (a Session there does the work, opens the pull request and ships), follows that Session with a background watcher until the task's done criteria are verified, steering and unblocking it on the way, turns standing or scheduled work into that Reason's Loops instead of local cron or session timers, and keeps what should be remembered in Reason memory instead of local files. Use for "/work-in-reason", "do it in Reason", "hand this to Reason", "set up a Loop for this", or as the default for every task when the person's AGENTS.md or CLAUDE.md says work runs in Reason.
+  version: "3.0.0"
+description: Moves a person's work from a local agent session into their Reason workspace (reasonmachines.com), so teammates see, share and continue it. Hands each task to the right Reason as a message (a Session there does the work, opens the pull request and ships), follows that Session with a background watcher until the task's done criteria are verified, steering and unblocking it on the way, turns standing or scheduled work into that Reason's Loops instead of local cron or session timers, and keeps what should be remembered in Reason memory instead of local files. Use for "/work-with-reason", "do it in Reason", "hand this to Reason", "set up a Loop for this", or as the default for every task when the person's AGENTS.md or CLAUDE.md says work runs in Reason.
 ---
 
-# Work in Reason
+# Work with Reason
 
 A Session in the person's Reason workspace is visible to their team, any
 teammate can continue it, its Loops keep running when this machine sleeps, and
@@ -98,7 +98,7 @@ person only finds out when they ask.
    describes:
 
    ```sh
-   bun work-in-reason/scripts/watch.ts SESSION_ID --after-seq N
+   bun work-with-reason/scripts/watch.ts SESSION_ID --after-seq N
    ```
 
    It blocks on the Session's events and exits with one JSON summary when the
