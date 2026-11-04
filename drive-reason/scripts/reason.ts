@@ -94,12 +94,14 @@ export class Reason {
     private readonly transport: Transport = fetch,
     profile: Profile = "work",
     private readonly pin?: string,
+    // With --tests: the work key, used only to prove the test workspace differs.
+    private readonly workToken?: string,
   ) {
     this.profile = PROFILES[profile];
     if (!token.trim()) throw Error(`${this.profile.key} is not set; export a Reason API key for the ${this.profile.label} workspace (see SKILL.md)`);
   }
 
-  private async request(path: string, body?: ObjectValue, query: ObjectValue = {}, method?: string) {
+  private async request(path: string, body?: ObjectValue, query: ObjectValue = {}, method?: string, token = this.token) {
     const url = new URL(path, ORIGIN);
     if (url.origin !== ORIGIN || !url.pathname.startsWith("/v3/")) throw Error("API origin/path refused");
     for (const [key, value] of Object.entries(query)) {
@@ -110,7 +112,7 @@ export class Reason {
     try {
       response = await this.transport(url.toString(), {
         method: method ?? (body === undefined ? "GET" : "POST"),
-        headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json", "X-Reason-Agent": "drive-reason" },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Reason-Agent": "drive-reason" },
         body: body === undefined ? undefined : JSON.stringify(body),
         redirect: "error", signal: AbortSignal.timeout(30_000),
       });
@@ -132,6 +134,18 @@ export class Reason {
       });
     }
     return { http_status: response.status, data: object(data) };
+  }
+
+  // A test key must not reach the work workspace: compare both keys' /v3/self
+  // workspaces, or rely on an explicit test-workspace pin when no work key is set.
+  private async ensureSeparateTestWorkspace(testOrg: string) {
+    if (!this.workToken) {
+      if (this.pin) return;
+      throw Error("--tests needs REASON_TESTS_WORKSPACE_ID, or REASON_API_KEY to prove the test workspace is a different one; no workspace operation sent");
+    }
+    const work = await this.request("/v3/self", undefined, {}, undefined, this.workToken);
+    if (work.data.org_id === testOrg)
+      throw Error("REASON_TESTS_API_KEY belongs to the same workspace as REASON_API_KEY; tests need a separate test workspace. No workspace operation sent");
   }
 
   async execute(command: string, options: Options = {}) {
@@ -168,18 +182,26 @@ export class Reason {
     if (this.pin && this.pin !== org && this.pin !== workspace.slug)
       throw Error(`Workspace mismatch: the key belongs to ${workspace.name ?? org}, not the pinned ${this.profile.pin}; no workspace operation sent`);
     if (command === "self") return self;
+    if (this.profile === PROFILES.tests) await this.ensureSeparateTestWorkspace(org);
     const scopes = self.data.scopes;
     if (!Array.isArray(scopes) || !scopes.every(s => typeof s === "string")) throw Error("Invalid credential scope response");
-    const required = [route.scope, ...(route.session ? ["sessions:read"] : [])];
+    // Writes to an existing Session read it first: to observe it, and to see
+    // whether it runs on a Device, which needs devices:use as well as run.
+    const preflight = route.session === "continue" || command === "checkin-create";
+    const required = [route.scope, ...(route.session || preflight ? ["sessions:read"] : [])];
     if (options.body?.target && object(options.body.target).kind !== "cloud") required.push("devices:use");
     for (const scope of required) if (!scopes.includes(scope)) throw Error(`Missing scope ${scope}; no workspace operation sent`);
     const base = `/v3/organizations/${encodeURIComponent(org)}`;
     const path = base + route.path.replace(":id2", options.id2 ?? "").replace(":id", options.id ?? "");
     if (!route.method) return { workspace, ...(await this.request(path, undefined, options.query)) };
-    if (route.session === "continue") {
+    if (preflight) {
       const current = await this.request(`${base}/sessions/${id(options.id)}`);
       if (command === "cancel" && current.data.status !== "running")
         return { workspace, mutation_sent: false, session: current.data };
+      const target = current.data.target;
+      const onDevice = !!target && typeof target === "object" && (target as ObjectValue).kind !== "cloud";
+      if ((command === "send" || command === "checkin-create") && onDevice && !scopes.includes("devices:use"))
+        throw Error("Missing scope devices:use for a Device-backed Session; no workspace operation sent");
     }
     const query = route.method === "DELETE" ? options.query : undefined;
     const accepted = await this.request(path, options.body ?? (route.method === "POST" ? {} : undefined), query, route.method);
@@ -259,7 +281,8 @@ export async function main(args: string[], env: Record<string, string | undefine
       else if (!arg.startsWith("--") && !options.id2) options.id2 = arg;
       else throw Error("Unexpected argument; run --help");
     }
-    print(await new Reason(token, fetch, profile, pin).execute(command, options));
+    const workToken = profile === "tests" ? env.REASON_API_KEY?.trim() || undefined : undefined;
+    print(await new Reason(token, fetch, profile, pin, workToken).execute(command, options));
   } catch (error) {
     print({ error: error instanceof Error ? error.message : "Unknown failure", ...(error instanceof Failure ? error.details : {}) });
     process.exitCode = 1;

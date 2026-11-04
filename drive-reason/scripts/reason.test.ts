@@ -13,18 +13,18 @@ const self = {
 const session = { session_id: "ses_test", status: "running", url: "https://reasonmachines.com/agents/ses_test" };
 const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), { status, headers });
-function fixture(responses: Array<Response | Error>, pin?: string) {
+function fixture(responses: Array<Response | Error>, pin?: string, profile: "work" | "tests" = "work", workToken?: string) {
   const calls: Array<{ url: URL; init: RequestInit }> = [];
   const client = new Reason("test-only-credential", async (url, init) => {
     calls.push({ url: new URL(url), init });
     expect(new URL(url).origin).toBe("https://api.reasonmachines.com");
     expect(init.redirect).toBe("error");
-    expect(init.headers).toMatchObject({ Authorization: "Bearer test-only-credential" });
+    expect(String((init.headers as Record<string, string>).Authorization)).toMatch(/^Bearer (test-only-credential|work-only-credential)$/);
     const response = responses.shift();
     if (!response) throw Error("Unexpected request");
     if (response instanceof Error) throw response;
     return response;
-  }, "work", pin);
+  }, profile, pin, workToken);
   return { client, calls };
 }
 
@@ -145,13 +145,13 @@ describe("mutations and reconciliation", () => {
     await expect(client.execute("send", { id: "ses_test", body: { message: "test", client_message_id: "a".repeat(161) } })).rejects.toThrow("160");
   });
   test("schedules and cancels a Session check-in", async () => {
-    const { client, calls } = fixture([json(self), json({ ok: true }, 201), json(self), json({}, 204)]);
+    const { client, calls } = fixture([json(self), json({ ...session, target: { kind: "cloud" } }), json({ ok: true }, 201), json(self), json({}, 204)]);
     const body = { id: "11111111-1111-4111-8111-111111111111", at: "2030-01-01T00:00:00Z", note: "check CI" };
     await client.execute("checkin-create", { id: "ses_test", body });
-    expect(calls[1].url.pathname).toBe(`/v3/organizations/${org}/sessions/ses_test/follow-ups`);
-    expect(JSON.parse(String(calls[1].init.body))).toEqual(body);
+    expect(calls[2].url.pathname).toBe(`/v3/organizations/${org}/sessions/ses_test/follow-ups`);
+    expect(JSON.parse(String(calls[2].init.body))).toEqual(body);
     await client.execute("checkin-cancel", { id: "ses_test", id2: body.id });
-    expect(calls[3].init.method).toBe("DELETE");
+    expect(calls[4].init.method).toBe("DELETE");
   });
 });
 
@@ -235,6 +235,42 @@ describe("Reasons, Loops and memory", () => {
     await client.execute("memory-write", { body: { scope: "personal", path: "a.md", content: "x" } });
     expect(calls[3].init.method).toBe("PUT");
     await expect(client.execute("memory-write", { body: { scope: "personal", path: "a.md", content: "x", owner: "someone" } })).rejects.toThrow("Unsupported body field");
+  });
+});
+
+describe("test workspace isolation and Device scope", () => {
+  test("--tests refuses distinct keys that belong to the same workspace", async () => {
+    const { client, calls } = fixture([json(self), json(self)], undefined, "tests", "work-only-credential");
+    await expect(client.execute("list")).rejects.toThrow("same workspace");
+    expect(calls).toHaveLength(2);
+    expect(String((calls[1].init.headers as Record<string, string>).Authorization)).toBe("Bearer work-only-credential");
+  });
+  test("--tests runs when the work key belongs to another workspace", async () => {
+    const { client, calls } = fixture([json(self), json({ ...self, org_id: "work-org" }), json({ items: [] })], undefined, "tests", "work-only-credential");
+    await client.execute("list");
+    expect(calls[2].url.pathname).toBe(`/v3/organizations/${org}/sessions`);
+  });
+  test("--tests without a work key needs a test-workspace pin", async () => {
+    const { client, calls } = fixture([json(self)], undefined, "tests");
+    await expect(client.execute("list")).rejects.toThrow("REASON_TESTS_WORKSPACE_ID");
+    expect(calls).toHaveLength(1);
+    const pinned = fixture([json(self), json({ items: [] })], org, "tests");
+    await pinned.client.execute("list");
+    expect(pinned.calls).toHaveLength(2);
+  });
+  test("messaging or checking in on a Device-backed Session needs devices:use", async () => {
+    const onMac = { ...session, status: "exit", target: { kind: "mac", device_id: "dev_1" } };
+    for (const [command, body] of [
+      ["send", { message: "go on", client_message_id: "m-1" }],
+      ["checkin-create", { id: "11111111-1111-4111-8111-111111111111", at: "2030-01-01T00:00:00Z", note: "x" }],
+    ] as const) {
+      const { client, calls } = fixture([json(self), json(onMac)]);
+      await expect(client.execute(command, { id: "ses_test", body })).rejects.toThrow("devices:use");
+      expect(calls.every(call => call.init.method === "GET")).toBe(true);
+    }
+    const allowed = fixture([json({ ...self, scopes: [...self.scopes, "devices:use"] }), json(onMac), json({ ok: true }), json(onMac)]);
+    await allowed.client.execute("send", { id: "ses_test", body: { message: "go on", client_message_id: "m-1" } });
+    expect(allowed.calls[2].init.method).toBe("POST");
   });
 });
 

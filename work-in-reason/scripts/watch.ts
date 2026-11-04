@@ -106,4 +106,7 @@ while (true) {
   if (ENDED.has(status) && (sawActive || newEvents > 0 || Date.now() - started >= graceMs)) done("turn_ended", { error_class: page.session.error_class ?? null });
   if (status === "running" && Date.now() - lastActivity >= stallMs) done("stalled");
   if (Date.now() - started >= maxMs) done("heartbeat");
+  // The server long-polls only running Sessions; an ended one waiting out its
+  // grace period answers at once, so pace those polls.
+  if (ENDED.has(status) && page.items.length === 0) await Bun.sleep(15_000);
 }
