@@ -6,8 +6,8 @@ at this repo and have it install the skill it needs.
 ## Install
 
 Each skill is a folder with a `SKILL.md`. Clone once, then copy the folders
-you want into your agent's skills directory. Install `work-in-reason` and
-`drive-reason` together, side by side: `work-in-reason` runs
+you want into your agent's skills directory. Install `work-with-reason` and
+`drive-reason` together, side by side: `work-with-reason` runs
 `drive-reason`'s helper.
 
 ```sh
@@ -16,15 +16,15 @@ git clone --depth 1 https://github.com/reason-machines/skills /tmp/reason-skills
 
 | Agent | Install |
 | --- | --- |
-| Claude Code | `mkdir -p ~/.claude/skills && cp -r /tmp/reason-skills/{drive-reason,work-in-reason} ~/.claude/skills/` |
-| Codex | `mkdir -p ~/.agents/skills && cp -r /tmp/reason-skills/{drive-reason,work-in-reason} ~/.agents/skills/` |
-| Cursor | `mkdir -p ~/.cursor/skills && cp -r /tmp/reason-skills/{drive-reason,work-in-reason} ~/.cursor/skills/` |
-| Pi | `mkdir -p ~/.agents/skills && cp -r /tmp/reason-skills/{drive-reason,work-in-reason} ~/.agents/skills/` |
+| Claude Code | `mkdir -p ~/.claude/skills && cp -r /tmp/reason-skills/{drive-reason,work-with-reason} ~/.claude/skills/` |
+| Codex | `mkdir -p ~/.agents/skills && cp -r /tmp/reason-skills/{drive-reason,work-with-reason} ~/.agents/skills/` |
+| Cursor | `mkdir -p ~/.cursor/skills && cp -r /tmp/reason-skills/{drive-reason,work-with-reason} ~/.cursor/skills/` |
+| Pi | `mkdir -p ~/.agents/skills && cp -r /tmp/reason-skills/{drive-reason,work-with-reason} ~/.agents/skills/` |
 
 Swap in `migrate-to-reason` (or any other folder) the same way. To update,
 pull the clone and copy again.
 
-## work-in-reason
+## work-with-reason
 
 Hands your work to a Reason instead of doing it in a local agent session, so
 your team sees it and can continue it. The local agent sends the task to the
@@ -33,7 +33,7 @@ criteria are verified (steering and unblocking it on the way), puts standing
 work in Reason Loops instead of local cron, and keeps what should be
 remembered in Reason memory.
 
-- Read [`work-in-reason/SKILL.md`](work-in-reason/SKILL.md).
+- Read [`work-with-reason/SKILL.md`](work-with-reason/SKILL.md).
 - Your own setup (which workspace, which Reason owns which area, whether this
   is your default for all work) goes in your `AGENTS.md` or `CLAUDE.md`, not
   in the skill.

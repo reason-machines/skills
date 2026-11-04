@@ -34,7 +34,7 @@ let afterSeq = flag("after-seq", -1);
 // drive-reason is installed beside this skill (skills/<name>/...).
 const helper = join(dirname(realpathSync(import.meta.path)), "../../drive-reason/scripts/reason.ts");
 if (!existsSync(helper)) {
-  console.error(`drive-reason helper not found at ${helper}; install drive-reason next to work-in-reason`);
+  console.error(`drive-reason helper not found at ${helper}; install drive-reason next to work-with-reason`);
   process.exit(2);
 }
 const ENDED = new Set(["exit", "error", "suspended", "cancelled", "canceled", "failed"]);

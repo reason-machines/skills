@@ -1,8 +1,8 @@
 ---
 name: drive-reason
 metadata:
-  version: "1.0.0"
-description: Drives Reason (reasonmachines.com) through its public HTTP API from any coding agent. Lists, creates, messages and configures Reasons and reads their replies; creates, runs and removes their Loops; reads and writes personal and team memory; starts, follows, steers, cancels or archives Sessions and schedules their check-ins. Uses a Reason API key from the REASON_API_KEY environment variable, reads the workspace from /v3/self, checks scopes before every call, and sends tests and probes to a separate test workspace (REASON_TESTS_API_KEY). Use when asked to do something in Reason through its API, or as the mechanics behind work-in-reason.
+  version: "1.0.1"
+description: Drives Reason (reasonmachines.com) through its public HTTP API from any coding agent. Lists, creates, messages and configures Reasons and reads their replies; creates, runs and removes their Loops; reads and writes personal and team memory; starts, follows, steers, cancels or archives Sessions and schedules their check-ins. Uses a Reason API key from the REASON_API_KEY environment variable, reads the workspace from /v3/self, checks scopes before every call, and sends tests and probes to a separate test workspace (REASON_TESTS_API_KEY). Use when asked to do something in Reason through its API, or as the mechanics behind work-with-reason.
 ---
 
 # Drive Reason
