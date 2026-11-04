@@ -1,0 +1,6 @@
+# Bundles created by migrate-to-reason hold live tokens and local state — never commit them.
+secrets.env
+secrets.names.txt
+.reason-import-state.json
+__pycache__/
+*.pyc
